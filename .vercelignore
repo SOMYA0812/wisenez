@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+.venv/
+.git/
+.streamlit/secrets.toml
+data/
+__pycache__/
+.pytest_cache/
+*.sqlite3*

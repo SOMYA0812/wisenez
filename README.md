@@ -1,5 +1,17 @@
 # Wisnez
 
+## Landing page and dashboard
+
+The default URL opens the cinematic business-themed landing page. **Enter workspace** opens `?page=dashboard`; **Home** returns to the landing page. Existing `?run=...` links still open the dashboard directly. All four dashboard views use the dark brown office-window theme. The italic display font is bundled Instrument Serif under the included SIL Open Font License.
+
+## Vercel deployment
+
+`Dockerfile.vercel` and `vercel.json` select Vercel's Container runtime and run Streamlit on the supplied `PORT`. Deploy with `npx vercel --prod` after authenticating, or import this GitHub repository in Vercel using the Container framework preset.
+
+The container copies only application code, static assets, requirements and the non-secret Streamlit config. Local `.env`, API keys and databases are excluded. Set a provider key through Vercel environment variables only when enabling live AI; sample mode works without credentials.
+
+This container is an MVP demo using SQLite under `/tmp/wisnez`. Its data is not durable across cold starts or shared between instances. The UI labels this limitation. Use an external persistent database before relying on cloud approval history or customer records. Container availability, WebSocket support and function-duration limits must be verified in the target Vercel account.
+
 A Python MVP for Code E Fiesta problem statement two: an AI team prepares lead follow-ups, a person approves the exact preview, and a deterministic executor commits the approved CRM changes and simulated emails.
 
 **Simulated business tools. Real approval. No email is delivered.**

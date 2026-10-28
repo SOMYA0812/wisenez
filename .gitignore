@@ -6,3 +6,5 @@ __pycache__/
 data/
 *.sqlite3*
 *.pyc
+.vercel/
+node_modules/

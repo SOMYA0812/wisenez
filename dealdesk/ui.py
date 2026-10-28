@@ -79,6 +79,8 @@ def sidebar(store: Store, mode: str) -> str | None:
         st.caption("Lead follow-up")
         st.divider()
         st.caption("Simulated tools. Real approval.")
+        if os.getenv("WISNEZ_EPHEMERAL_STORAGE") == "1":
+            st.info("Cloud demo storage resets when this instance restarts. Use fictional data.")
         st.caption("CRM changes persist locally. No email is delivered. Single-operator demo; names are an audit label, not authenticated identities.")
         with st.expander("Live AI setup"):
             st.markdown("**OpenRouter:** set `OPENROUTER_API_KEY` in your local `.env`, restart the app, and choose **Live OpenRouter**. Optionally set `OPENROUTER_MODEL` to a model supporting structured outputs. Requests may use your OpenRouter credits.")

@@ -1,0 +1,19 @@
+FROM python:3.14-slim
+
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=80 \
+    DEALDESK_DB=/tmp/wisnez/wisnez.sqlite3 \
+    WISNEZ_EPHEMERAL_STORAGE=1
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app.py ./
+COPY dealdesk ./dealdesk
+COPY static ./static
+COPY .streamlit/config.toml ./.streamlit/config.toml
+
+EXPOSE 80
+CMD ["sh", "-c", "exec python -m streamlit run app.py --server.address 0.0.0.0 --server.port ${PORT:-80} --server.headless true --server.fileWatcherType none"]

@@ -92,7 +92,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,[role="tab"]:foc
 .st-key-landing_actions [data-testid="stBaseButton-primary"]:hover{background:white;color:#080808;border-color:white}
 .st-key-landing_actions button p{font-size:21px;letter-spacing:-.7px}
 .landing-action-note{text-align:center;color:#ded5ce;font-size:16px;letter-spacing:1px;margin:0}
-.landing-footer{position:absolute;left:54px;right:54px;bottom:25px;display:flex;justify-content:space-between;gap:12px;color:#b8b0a9;font-size:13px}
+.landing-footer{position:fixed;left:54px;right:54px;bottom:25px;display:flex;justify-content:space-between;gap:12px;color:#b8b0a9;font-size:13px;pointer-events:none}
 @media(max-width:1000px){
  .st-key-dashboard_hero{padding:1.6rem}.st-key-dashboard_hero h1{font-size:3rem!important}
  .stTabs [role="tab"]{padding:.65rem 1.8rem}.st-key-dashboard_top{padding-right:135px}

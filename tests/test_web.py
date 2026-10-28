@@ -23,6 +23,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "")
     monkeypatch.setenv("VERCEL", "0")
     monkeypatch.setenv("WISNEZ_ACCESS_CODE", CODE)
+    monkeypatch.setenv("WISNEZ_REQUIRE_ACCESS_CODE", "1")
     monkeypatch.setenv("OPENROUTER_API_KEY", "")
     _login_attempts.clear()
     return Store(db)
@@ -137,3 +138,17 @@ def test_logout_revokes_browser_session(env):
         assert (await client.post('/api/logout',json={})).status_code == 200
         assert (await client.get('/api/state')).status_code == 401
     scenario(check)
+
+
+def test_public_judge_demo_needs_no_code_but_still_requires_plan_approval(env, monkeypatch):
+    monkeypatch.setenv('WISNEZ_REQUIRE_ACCESS_CODE', '0')
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test', headers=HEADERS) as client:
+            response = await client.get('/api/state')
+            assert response.status_code == 200
+            assert response.json()['access_protected'] is False
+            workflow = await prepare(client, ['L001'])
+            denied = await client.post('/api/execute/' + workflow['id'],json=payload(version=1,plan_hash=workflow['plan_hash']))
+            assert denied.status_code == 409
+            assert not env.rows('SELECT * FROM outbox')
+    asyncio.run(run())

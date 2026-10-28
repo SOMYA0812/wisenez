@@ -12,9 +12,9 @@ The container copies only application code, static assets, requirements and the 
 
 Connect a **private Vercel Blob store** and provide `BLOB_READ_WRITE_TOKEN` to persist SQLite snapshots across instances and cold starts. Each mutation uses an ETag conditional write; stale writers cannot overwrite newer approval or execution state. This small-workspace snapshot design supports the simulated tools only. Without storage credentials, production fails closed instead of silently using ephemeral state.
 
-Set `WISNEZ_ACCESS_CODE` to a random value of at least 16 characters. All business APIs require a signed, HttpOnly, SameSite session cookie after login. Live OpenRouter credentials stay on the server. The demo limits live preparations to 20 per UTC day, reserved durably before model calls. Use fictional records. This is a single-operator MVP, not a multi-tenant business system.
+The judge demo is publicly accessible without an access code, as requested. Visitors share fictional records and can review and approve simulated workflows. Live OpenRouter credentials stay on the server; live preparations are limited to 20 per UTC day, reserved durably before model calls. Use fictional records only. This is a shared MVP demo, not a multi-tenant business system. To enable a private workspace, set `WISNEZ_REQUIRE_ACCESS_CODE=1` and a random `WISNEZ_ACCESS_CODE` of at least 16 characters; business APIs then require a signed, HttpOnly, SameSite session cookie.
 
-To run the hosted frontend locally, configure `.env` and run `python -m uvicorn dealdesk.web:app --port 8502`, then open `http://127.0.0.1:8502`. The provisioned owner access code is stored only in the ignored `data/wisnez-access-code.txt`; share it privately with judges. It is never committed to Git.
+To run the hosted frontend locally, configure `.env` and run `python -m uvicorn dealdesk.web:app --port 8502`, then open `http://127.0.0.1:8502`. No access code is needed in public demo mode.
 
 A Python MVP for Code E Fiesta problem statement two: an AI team prepares lead follow-ups, a person approves the exact preview, and a deterministic executor commits the approved CRM changes and simulated emails.
 

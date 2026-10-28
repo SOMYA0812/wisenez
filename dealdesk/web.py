@@ -53,7 +53,7 @@ def authenticated(request: Request) -> bool:
 @app.middleware("http")
 async def protect_requests(request: Request, call_next):
     path = request.url.path
-    if path.startswith("/api/") and path not in {"/api/login", "/api/health"} and not authenticated(request):
+    if os.getenv("WISNEZ_REQUIRE_ACCESS_CODE", "0") == "1" and path.startswith("/api/") and path not in {"/api/login", "/api/health"} and not authenticated(request):
         return JSONResponse({"detail": "Enter your workspace access code to continue."}, status_code=401)
     if request.method not in {"GET", "HEAD", "OPTIONS"}:
         origin = request.headers.get("origin")
@@ -157,7 +157,8 @@ def state(run: str | None = None):
                 "approvals": store.rows("SELECT * FROM approvals ORDER BY id DESC LIMIT 100"),
                 "live_available": bool(os.getenv("OPENROUTER_API_KEY", "").strip()),
                 "model": os.getenv("OPENROUTER_MODEL", "").strip() or OpenRouterAgents.default_model,
-                "persistent": bool(os.getenv("BLOB_READ_WRITE_TOKEN")), "daily_live_limit": 20}
+                "persistent": bool(os.getenv("BLOB_READ_WRITE_TOKEN")), "daily_live_limit": 20,
+                "access_protected": os.getenv("WISNEZ_REQUIRE_ACCESS_CODE", "0") == "1"}
     return cloud.operation(read)
 
 

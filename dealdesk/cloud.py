@@ -9,9 +9,11 @@ import os
 import re
 import tempfile
 import threading
+import time
 from pathlib import Path
 from typing import Callable, TypeVar
 from urllib.parse import urlparse
+from uuid import uuid4
 
 import httpx
 
@@ -21,7 +23,8 @@ from .storage import Store
 T = TypeVar("T")
 _lock = threading.RLock()
 _API = "https://vercel.com/api/blob"
-_OBJECT = "wisnez/workspace-v1.sqlite3"
+_OBJECT = "wisnez/workspace-index-v2"
+_TYPE_PREFIX = "application/vnd.wisnez.snapshot."
 
 
 class StorageConflict(WorkflowError):
@@ -45,28 +48,44 @@ class BlobSnapshot:
 
     def load(self):
         with httpx.Client(timeout=25, follow_redirects=False) as client:
-            meta = client.get(_API, params={"url": _OBJECT}, headers=self.headers())
+            meta = client.get(_API, params={"url": _OBJECT, "fresh": str(time.time_ns())}, headers={**self.headers(), "Cache-Control": "no-cache"})
             if meta.status_code == 404:
                 return None, None
             if not meta.is_success:
                 raise CloudUnavailable("Persistent storage is temporarily unavailable. Please retry.")
             metadata = meta.json()
-            url, etag = metadata["url"], metadata["etag"]
+            etag = metadata["etag"]
+            # Overwritten Blob delivery URLs can remain cached. The authoritative
+            # metadata carries an immutable snapshot identifier in its MIME type,
+            # so we never read a mutable object through the delivery CDN.
+            content_type = metadata.get("contentType", "")
+            snapshot_id = content_type.removeprefix(_TYPE_PREFIX)
+            if not content_type.startswith(_TYPE_PREFIX) or not re.fullmatch(r"[a-f0-9]{32}", snapshot_id):
+                raise CloudUnavailable("The saved workspace index needs attention.")
+            url = f"https://{self.host}/wisnez/snapshots/{snapshot_id}.sqlite3"
             parsed = urlparse(url)
             if parsed.scheme != "https" or parsed.hostname != self.host:
                 raise CloudUnavailable("Persistent storage returned an unexpected location.")
-            response = client.get(url, params={"revision": etag}, headers={**self.headers(), "Cache-Control": "no-cache"})
+            response = client.get(url, headers=self.headers())
             if not response.is_success:
                 raise CloudUnavailable("Could not load saved workflows. Please retry.")
             return response.content, etag
 
     def save(self, data: bytes, etag: str | None):
+        snapshot_id = uuid4().hex
+        snapshot_headers = {**self.headers(), "x-vercel-blob-access": "private", "x-add-random-suffix": "0",
+                            "x-allow-overwrite": "0", "x-content-type": "application/octet-stream"}
+        # Publish the immutable snapshot before atomically advancing the index.
+        upload = httpx.put(_API, params={"pathname": f"wisnez/snapshots/{snapshot_id}.sqlite3"},
+                           headers=snapshot_headers, content=data, timeout=25)
+        if not upload.is_success:
+            raise CloudUnavailable("Could not save the workspace snapshot. Please retry.")
         headers = {**self.headers(), "x-vercel-blob-access": "private", "x-add-random-suffix": "0",
-                   "x-allow-overwrite": "1" if etag else "0", "x-content-type": "application/octet-stream",
+                   "x-allow-overwrite": "1" if etag else "0", "x-content-type": _TYPE_PREFIX + snapshot_id,
                    "x-cache-control-max-age": "0"}
         if etag:
             headers["x-if-match"] = etag
-        response = httpx.put(_API, params={"pathname": _OBJECT}, headers=headers, content=data, timeout=25)
+        response = httpx.put(_API, params={"pathname": _OBJECT}, headers=headers, content=snapshot_id.encode(), timeout=25)
         if response.status_code in {409, 412}:
             raise StorageConflict("The workspace changed in another session. Refresh and review the latest version before retrying.")
         if not response.is_success:

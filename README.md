@@ -6,11 +6,15 @@ The default URL opens the cinematic business-themed landing page. **Enter worksp
 
 ## Vercel deployment
 
-`Dockerfile.vercel` and `vercel.json` select Vercel's Container runtime and run Streamlit on the supplied `PORT`. Deploy with `npx vercel --prod` after authenticating, or import this GitHub repository in Vercel using the Container framework preset.
+The production site uses a regular HTTP frontend with FastAPI and the same Python workflow engine as the local Streamlit app. This avoids persistent WebSocket connection problems observed in the original hosted version. `Dockerfile.vercel` runs Uvicorn on the supplied `PORT`. Deploy with `npx vercel --prod` after authenticating.
 
 The container copies only application code, static assets, requirements and the non-secret Streamlit config. Local `.env`, API keys and databases are excluded. Set a provider key through Vercel environment variables only when enabling live AI; sample mode works without credentials.
 
-This container is an MVP demo using SQLite under `/tmp/wisnez`. Its data is not durable across cold starts or shared between instances. The UI labels this limitation. Use an external persistent database before relying on cloud approval history or customer records. Container availability, WebSocket support and function-duration limits must be verified in the target Vercel account.
+Connect a **private Vercel Blob store** and provide `BLOB_READ_WRITE_TOKEN` to persist SQLite snapshots across instances and cold starts. Each mutation uses an ETag conditional write; stale writers cannot overwrite newer approval or execution state. This small-workspace snapshot design supports the simulated tools only. Without storage credentials, production fails closed instead of silently using ephemeral state.
+
+Set `WISNEZ_ACCESS_CODE` to a random value of at least 16 characters. All business APIs require a signed, HttpOnly, SameSite session cookie after login. Live OpenRouter credentials stay on the server. The demo limits live preparations to 20 per UTC day, reserved durably before model calls. Use fictional records. This is a single-operator MVP, not a multi-tenant business system.
+
+To run the hosted frontend locally, configure `.env` and run `python -m uvicorn dealdesk.web:app --port 8502`, then open `http://127.0.0.1:8502`. The provisioned owner access code is stored only in the ignored `data/wisnez-access-code.txt`; share it privately with judges. It is never committed to Git.
 
 A Python MVP for Code E Fiesta problem statement two: an AI team prepares lead follow-ups, a person approves the exact preview, and a deterministic executor commits the approved CRM changes and simulated emails.
 

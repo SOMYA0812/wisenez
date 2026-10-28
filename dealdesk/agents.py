@@ -128,6 +128,10 @@ as PROPOSALS only. No action is executed during planning.""",
 for service, budget, timeline and interest. Normalize explicitly stated budgets to INR and timelines to
 days; never guess missing values. Unknown service is unknown; an explicitly unsupported service is other.
 interested means they are expressing interest in a project; respect explicit lack of interest.
+Every assessment MUST include a separate evidence item with field='interest', even if interest
+is obvious. Include field='service' for every service except unknown, field='budget' for any
+non-null budget, and field='timeline' for any non-null timeline. Each quote must be an exact
+substring of that lead's enquiry, preserving spelling, punctuation and case.
 Do not classify hot/warm/cold: Python applies company rules. Summaries must be grounded in the enquiry.""",
                           {"leads": [x.model_dump() for x in leads], "policy": policy.model_dump()}, AnalysisBatch)
 
@@ -170,8 +174,10 @@ class GeminiAgents(AgentRoles):
                     message = "The Gemini request failed. Check connectivity, model availability, and API access."
                 raise WorkflowError(message) from None
             try:
-                return schema.model_validate_json(response.output_text or "")
-            except ValidationError:
+                result = schema.model_validate_json(response.output_text or "")
+                validate_role_output(role, result, data)
+                return result
+            except (ValidationError, WorkflowError):
                 if attempt == 0:
                     prompt += "\nYour previous response did not validate. Return a complete object matching the requested JSON schema."
         raise WorkflowError(f"{role} returned invalid structured output twice. The workflow stopped without executing actions.")
@@ -261,12 +267,28 @@ class OpenRouterAgents(AgentRoles):
             if finish in {"content_filter", "error"}:
                 raise WorkflowError("The OpenRouter model could not complete this request. No business actions executed.")
             try:
-                return schema.model_validate_json(content if isinstance(content, str) else "")
-            except ValidationError:
+                result = schema.model_validate_json(content if isinstance(content, str) else "")
+                validate_role_output(role, result, data)
+                return result
+            except (ValidationError, WorkflowError):
                 if attempt == 0:
                     # Do not reflect malformed provider content into the prompt.
-                    messages = messages + [{"role": "user", "content": "Your previous response did not validate. Return a complete object matching the requested JSON schema."}]
+                    messages = messages + [{"role": "user", "content": "Your previous response did not validate. Return a complete object matching the requested JSON schema and role requirements. Include exact source evidence for every extracted fact and an interest evidence item for every lead. Use the exact task dependencies specified."}]
         raise WorkflowError(f"{role} returned invalid structured output twice. The workflow stopped without executing actions.")
+
+
+def validate_role_output(role: str, result: BaseModel, data: dict) -> None:
+    """Include semantic checks in the provider's single bounded correction attempt."""
+    if "leads" not in data:
+        return
+    from .workflow import validate_analysis, validate_drafts, validate_tasks
+    leads = [Lead.model_validate(x) for x in data["leads"]]
+    if isinstance(result, AnalysisBatch):
+        validate_analysis(result, leads)
+    elif isinstance(result, DraftBatch):
+        validate_drafts(result, leads)
+    elif isinstance(result, TaskPlan):
+        validate_tasks(result, leads)
 
 
 class RecordingAgents:
